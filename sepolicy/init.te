@@ -1,0 +1,31 @@
+type securityfs, fs_type;
+
+allow init userdata_block_device:blk_file write;
+allow init cache_block_device:blk_file write;
+allow init devpts:chr_file getattr;
+allow init securityfs:file write;
+allow init securityfs:dir { read search open setattr mounton };
+#allow init blkid_exec:file getattr;
+
+#FM BCM
+allow init hci_attach_dev:chr_file rw_file_perms;
+allow init brcm_uim_exec:file { execute getattr read open };
+allow init brcm_ldisc_sysfs:lnk_file { read };
+allow init uim:process { siginh noatsecure transition rlimitinh };
+allow init tmpfs:lnk_file { relabelfrom };
+#TAD
+allow init tad_socket:sock_file create;
+allow init tad_block_device:blk_file setattr;
+allow init trim_area_partition_device:blk_file setattr;
+
+#Torch
+allow init sysfs_camera_torch:lnk_file read;
+
+allow init debugfs:file write;
+
+#============= qti_init_shell ==============
+allow qti_init_shell iddd_file:dir { getattr open read remove_name rmdir write };
+allow qti_init_shell tad:unix_stream_socket connectto;
+allow qti_init_shell tad_socket:sock_file write;
+allow qti_init_shell toolbox_exec:file entrypoint;
+

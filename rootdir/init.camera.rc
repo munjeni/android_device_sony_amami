@@ -1,0 +1,196 @@
+#
+# Copyright (C) 2017 The LineageOS Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and 
+# limitations under the License.
+#
+
+on init
+    # BoringSSL hacks
+    export LD_PRELOAD "libboringssl-compat.so"
+
+    export LD_SHIM_LIBS "\
+/system/vendor/bin/credmgrd|libsony_signal.so	\
+:/system/vendor/bin/suntrold|libsony_signal.so	\
+:/system/vendor/bin/iddd|libshims_idd.so	\
+:/system/vendor/bin/mm-qcamera-daemon|libshim_atomic.so	\
+:/system/lib/hw/camera.qcom.so|libsony_camera.so	\
+:/system/lib/libcammw.so|libshim_cald.so	\
+:/system/lib/hw/camera.qcom.so|libsony_graphicbuffer.so	\
+"
+
+    mkdir /idd 0751 idd idd
+    mkdir /rca 0750 idd idd
+    mkdir /misc 0750 root system
+
+on early-fs
+    wait /dev/block/mmcblk0p1
+    class_start trimarea
+    exec u:r:qti_init_shell:s0 -- /sbin/wait4tad_static
+
+on fs
+    # mount apps_log
+    #wait /dev/block/platform/msm_sdcc.1/by-name/apps_log
+    #mount ext4 /dev/block/platform/msm_sdcc.1/by-name/apps_log /idd nosuid nodev noatime noexec barrier=0 discard
+    chown idd idd /idd
+    chmod 0751 /idd
+    #exec /system/bin/rm -r /idd/lost+found
+    symlink /idd /mnt/idd
+
+on early-boot
+    #SONY early boot
+    start ta_qmi_service
+    start sct_service
+
+on boot
+    # PM8941 flash
+    chown media system /sys/class/misc/pm8941-flash/device/current1
+    chown media system /sys/class/misc/pm8941-flash/device/current2
+    chown media system /sys/class/misc/pm8941-flash/device/fault_status
+    chown media system /sys/class/misc/pm8941-flash/device/fine_current1
+    chown media system /sys/class/misc/pm8941-flash/device/fine_current2
+    chown media system /sys/class/misc/pm8941-flash/device/flash_timer
+    chown media system /sys/class/misc/pm8941-flash/device/mask_clamp_current
+    chown media system /sys/class/misc/pm8941-flash/device/mask_enable
+    chown media system /sys/class/misc/pm8941-flash/device/max_current
+    chown media system /sys/class/misc/pm8941-flash/device/mode
+    chown media system /sys/class/misc/pm8941-flash/device/startup_delay
+    chown media system /sys/class/misc/pm8941-flash/device/strobe
+    chown media system /sys/class/misc/pm8941-flash/device/vph_pwr_droop
+
+on post-fs
+     # we will remap this as /mnt/sdcard with the sdcard fuse tool
+     mkdir /data/misc/camera 0770 camera camera
+     mkdir /data/misc/cameraserver 0700 cameraserver cameraserver
+
+     # create directory for scd
+     mkdir /dev/socket/scd 0755 system system
+     mkdir /data/scd 0755 system system
+
+on post-fs-data
+    # SONY: Start early TA-users
+    mkdir /data/etc 0755 system system
+    exec -- /vendor/bin/taimport
+
+    mkdir /data/media 0770 media_rw media_rw
+
+    # SONY: Create dir for Widevine keybox
+    mkdir /data/persist/wv 0700 system system
+
+    mkdir /data/misc/systemkeys 0700 system system
+    mkdir /data/misc/keystore 0700 keystore keystore
+    mkdir /data/misc/keychain 0771 system system
+    installkey /data
+
+    mkdir /idd/lost+found 0770 root root
+    mkdir /idd/output 0755 idd idd
+    mkdir /idd/socket 0711 idd idd
+    mkdir /idd/startup-prober 0700 root root
+
+    restorecon_recursive /idd
+
+    # SONY: Camera
+    mkdir /data/camera 0771 media camera
+    chown media camera /sys/devices/sony_camera_0/info
+    chmod 0770 /sys/devices/sony_camera_0/info
+    chown media camera /sys/devices/sony_camera_1/info
+    chmod 0770 /sys/devices/sony_camera_1/info
+
+    # SONY: Import MiscTA to System properties
+    exec -- /system/bin/taimport property
+    setprop init.taimport.ready true
+    # taimport ready, use this as trigger for multi-cdf-symlinker
+
+    # create credmgrinit log file
+    touch /cache/credmgr.log
+    restorecon -R /cache/credmgr.log
+ 
+service taimport /vendor/bin/taimport
+    class late_start
+    user root
+    group system
+    oneshot
+
+service iddd /vendor/bin/iddd
+    class main
+    user idd
+    group idd log inet
+
+# This script init /cache/CredentialManagerData if /data/credmgr doesn't meet our requirements
+service initcredmgr /system/bin/credmgrfirstboot.sh
+    class late_start
+    user system
+    group credmgr_client
+    oneshot
+
+# When credmgrfirstboot is ready it set sys.credmgrdready=true.
+# Start credmgrd after that
+on property:sys.credmgrdready=true
+start credmgrd
+
+# Start Credential manager daemon
+service credmgrd /vendor/bin/credmgrd
+    user system
+    group credmgr_client
+    socket credmgr stream 0660 system credmgr_client
+    disabled
+
+# Secure Config Transfer service
+service sct_service /vendor/bin/sct_service
+    user root
+    disabled
+ 
+# Trim Area QMI service
+service ta_qmi_service /vendor/bin/ta_qmi_service
+    user ta_qmi
+    group ta_qmi trimarea system root net_raw wakelock
+    disabled
+#    seclabel u:r:ta_qmi_service:s0
+
+service scd /vendor/bin/scd
+    class late_start
+    user system
+    group system
+
+#service wvkbd_installer /system/bin/logwrapper /system/bin/wvkbd
+service wvkbd_installer /system/bin/wvkbd
+    user system
+    group system
+    oneshot
+    disabled
+
+# All services that use qseecomd daemon listeners should
+# start on sys.listeners.registered property to make sure that
+# all of its service listeners are registered before calling them
+on property:sys.listeners.registered=true
+    start wvkbd_installer
+
+#service qcamerasvr /system/bin/logwrapper /system/bin/mm-qcamera-daemon
+service qcamerasvr /vendor/bin/mm-qcamera-daemon
+    class late_start
+    user camera
+    group camera system inet input graphics credmgr_client cameraserver
+
+# SONY: TrimArea Daemon
+service tad_static /sbin/tad_static /dev/block/bootdevice/by-name/TA 0,16
+    class trimarea
+    user tad
+    group tad trimarea root
+    socket tad stream 0770 system trimarea
+    seclabel u:r:tad:s0
+
+service updatemiscta /vendor/bin/updatemiscta
+    class main
+    user updatemiscta
+    group trimarea
+    oneshot
+

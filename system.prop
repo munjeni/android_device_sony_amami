@@ -1,0 +1,128 @@
+# disable mobile data and roaming on first boot
+ro.com.android.mobiledata=false
+ro.com.android.dataroaming=false
+
+# Graphics
+ro.sf.lcd_density=320
+
+# USB path
+ro.usb.pid_suffix=1A7
+
+ro.use_data_netmgrd=true
+
+# Semc
+ro.semc.product.model=D5503
+ro.semc.ms_type_id=PM-0640-BV
+ro.semc.version.fs=GLOBAL-LTE
+ro.semc.product.name=Xperia Z1 Compact
+ro.semc.product.device=D55
+ro.semc.version.cust=1279-6214
+ro.semc.version.cust_revision=R3D
+
+wlan.driver.ath=0
+
+# Voice Call
+ro.qc.sdk.audio.ssr=false
+ro.qc.sdk.audio.fluencetype=fluence
+persist.audio.fluence.voicecall=true
+persist.audio.fluence.voicerec=false
+persist.audio.fluence.speaker=true 
+use.voice.path.for.pcm.voip=true
+
+# aDSP sensors
+## max rate
+ro.qti.sensors.max_accel_rate=false
+ro.qti.sensors.max_gyro_rate=false
+ro.qti.sensors.max_mag_rate=false
+ro.qti.sensors.max_geomag_rotv=50
+## sensor type
+ro.qti.sdk.sensors.gestures=false
+ro.qti.sensors.pedometer=false
+ro.qti.sensors.step_detector=true
+ro.qti.sensors.step_counter=true
+ro.qti.sensors.pam=false
+ro.qti.sensors.scrn_ortn=false
+ro.qti.sensors.smd=true
+ro.qti.sensors.game_rv=true
+ro.qti.sensors.georv=true
+ro.qti.sensors.cmc=false
+ro.qti.sensors.bte=false
+ro.qti.sensors.fns=false
+ro.qti.sensors.qmd=false
+ro.qti.sensors.amd=false
+ro.qti.sensors.rmd=false
+ro.qti.sensors.vmd=false
+ro.qti.sensors.gtap=false
+ro.qti.sensors.tap=false
+ro.qti.sensors.facing=false
+ro.qti.sensors.tilt=false
+ro.qti.sensors.tilt_detector=true
+ro.qti.sensors.dpc=false
+ro.qti.sensors.wu=false
+
+# Bluetooth
+ro.qualcomm.bt.hci_transport=smd
+qcom.bluetooth.soc=smd
+ro.bt.bdaddr_path=/data/etc/bluetooth_bdaddr
+
+# FM
+hw.fm.internal_antenna=true
+hw.fm.init=0
+
+# Semc
+ro.semc.version.fs_revision=14.6.A.1.236
+ro.semc.version.fs=GLOBAL-LTE
+ro.semc.version.sw=1272-6084
+ro.semc.version.sw_revision=14.6.A.1.236
+ro.semc.version.sw_variant=GENERIC
+ro.semc.version.sw_type=user
+
+# Ril
+rild.libargs=-d /dev/smd0
+rild.libpath=/system/vendor/lib/libril-qc-qmi-1.so
+ril.subscription.types=NV,RUIM
+ro.ril.enable.amr.wideband=1
+ro.telephony.default_network=9
+ro.ril.telephony.mqanelements=5
+telephony.lteOnCdmaDevice=0
+telephony.lteOnGsmDevice=1
+persist.radio.apm_sim_not_pwdn=1
+persist.radio.add_power_save=1
+persist.radio.oem_socket=true
+persist.radio.data_no_toggle=1
+persist.radio.calls.on.ims=0
+ro.telephony.sim.count=1
+ro.multi.rild=false
+persist.dsds.enabled=false
+ro.dual.sim.phone=false
+persist.radio.multisim.config=none
+# see ril.cpp! this fake is need for registering on network.
+ro.use_qcril_send_fake=1
+# have no idea what this does
+ril.ecclist=911,112,000,08,110,999,118,119
+ro.sony.th_list_gw_rscp=-64,-68,-72,-76,-80,-84,-88,-92,-96,-100,-104,-107,-109,-111,-116,-120
+ro.sony.th_list_l_rsrp=-68,-74,-80,-86,-92,-98,-104,-110,-116,-117,-119,-121,-123,-125,-128,-134
+ro.sony.th_list_l_snr=-120,-80,-40,-20,0,10,20,60,90,120,150,180,210,240,270,300
+persist.env.spec=Europe
+persist.carrier=Unknown
+persist.rild.nitz_plmn=
+persist.rild.nitz_long_ons_0=
+persist.rild.nitz_long_ons_1=
+persist.rild.nitz_long_ons_2=
+persist.rild.nitz_long_ons_3=
+persist.rild.nitz_short_ons_0=
+persist.rild.nitz_short_ons_1=
+persist.rild.nitz_short_ons_2=
+persist.rild.nitz_short_ons_3=
+# from stock rom
+persist.env.phone.global=false
+persist.env.plmn.update=false
+persist.radio.adb_log_on=0
+persist.radio.apm_sim_not_pwdn=1
+persist.radio.dont_use_dsd=false
+persist.radio.eons.enabled=false
+persist.sys.cnd.iwlan=1
+persist.sys.country=GB
+persist.sys.language=en
+
+

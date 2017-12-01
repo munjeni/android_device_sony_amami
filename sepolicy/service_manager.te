@@ -1,0 +1,2 @@
+allow servicemanager sysfs:file { open read getattr };
+

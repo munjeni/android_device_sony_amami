@@ -1,0 +1,17 @@
+# Allow rild read to ro.semc
+allow rild ta_prop:file { read open getattr };
+
+# Grant access to Qualcomm MSM Interface (QMI) radio sockets to RILD
+qmux_socket(rild)
+
+allow rild self:process execmem;
+allow rild servicemanager:binder call;
+allow rild tad_socket:sock_file write;
+allow rild tee_device:chr_file { read write open ioctl};
+allow rild tad:unix_stream_socket connectto;
+allow rild diag_device:chr_file rw_file_perms;
+allow radio system_app_data_file:dir getattr;
+
+allow servicemanager init:dir search;
+allow servicemanager rild:dir search;
+allow servicemanager rild:file read;

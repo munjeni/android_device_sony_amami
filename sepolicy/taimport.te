@@ -1,0 +1,25 @@
+type taimport, domain;
+type taimport_exec, exec_type, file_type;
+
+# Started by init
+init_daemon_domain(taimport)
+
+# Connect to /dev/socket/tad
+unix_socket_connect(taimport, tad, tad)
+
+allow taimport self:capability setgid;
+
+# Write to /data/etc/*
+allow taimport ta_data_file:dir rw_dir_perms;
+type_transition taimport ta_data_file:file wifi_data_file;
+type_transition taimport ta_data_file:file bluetooth_data_file "bluetooth_bdaddr";
+allow taimport wifi_data_file:file create_file_perms;
+allow taimport bluetooth_data_file:file create_file_perms;
+
+#============= taimport ==============
+#allow taimport adbsecure_prop:property_service set;
+allow taimport property_socket:sock_file write;
+allow taimport ta_prop:property_service set;
+# Allow reading system properties
+allow taimport init:unix_stream_socket connectto;
+
