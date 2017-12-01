@@ -21,6 +21,7 @@ depending on (Sony specific):
 -----------------------------
 
     LineageOS/android_device_sony_common
+    LeneageOS/android_device_qcom_common
 
 ## Device Picture
 
