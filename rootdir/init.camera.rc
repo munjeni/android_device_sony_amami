@@ -18,19 +18,11 @@ on init
     # BoringSSL hacks
     export LD_PRELOAD "libboringssl-compat.so"
 
-    export LD_SHIM_LIBS "\
-/system/vendor/bin/credmgrd|libsony_signal.so	\
-:/system/vendor/bin/suntrold|libsony_signal.so	\
-:/system/vendor/bin/iddd|libshims_idd.so	\
-:/system/vendor/bin/mm-qcamera-daemon|libshim_atomic.so	\
-:/system/lib/hw/camera.qcom.so|libsony_camera.so	\
-:/system/lib/libcammw.so|libshim_cald.so	\
-:/system/lib/hw/camera.qcom.so|libsony_graphicbuffer.so	\
-"
+    export LD_SHIM_LIBS "/system/vendor/bin/credmgrd|libsony_signal.so:/system/vendor/bin/suntrold|libsony_signal.so:/system/vendor/bin/iddd|libshims_idd.so:/system/vendor/bin/mm-qcamera-daemon|libshim_atomic.so:/system/lib/hw/camera.qcom.so|libsony_camera.so:/system/lib/libcammw.so|libshim_cald.so:/system/lib/hw/camera.qcom.so|libsony_graphicbuffer.so"
 
-    mkdir /idd 0751 idd idd
-    mkdir /rca 0750 idd idd
-    mkdir /misc 0750 root system
+    mkdir /idd 0751 oem_2987 oem_2987
+    mkdir /rca 0750 oem_2987 oem_2987
+    mkdir /persist 0600 system system
 
 on early-fs
     wait /dev/block/mmcblk0p1
@@ -41,7 +33,7 @@ on fs
     # mount apps_log
     #wait /dev/block/platform/msm_sdcc.1/by-name/apps_log
     #mount ext4 /dev/block/platform/msm_sdcc.1/by-name/apps_log /idd nosuid nodev noatime noexec barrier=0 discard
-    chown idd idd /idd
+    chown oem_2987 oem_2987 /idd
     chmod 0751 /idd
     #exec /system/bin/rm -r /idd/lost+found
     symlink /idd /mnt/idd
@@ -67,7 +59,7 @@ on boot
     chown media system /sys/class/misc/pm8941-flash/device/strobe
     chown media system /sys/class/misc/pm8941-flash/device/vph_pwr_droop
 
-on post-fs
+on post-fs-data
      # we will remap this as /mnt/sdcard with the sdcard fuse tool
      mkdir /data/misc/camera 0770 camera camera
      mkdir /data/misc/cameraserver 0700 cameraserver cameraserver
@@ -76,7 +68,6 @@ on post-fs
      mkdir /dev/socket/scd 0755 system system
      mkdir /data/scd 0755 system system
 
-on post-fs-data
     # SONY: Start early TA-users
     mkdir /data/etc 0755 system system
     exec -- /vendor/bin/taimport
@@ -92,8 +83,8 @@ on post-fs-data
     installkey /data
 
     mkdir /idd/lost+found 0770 root root
-    mkdir /idd/output 0755 idd idd
-    mkdir /idd/socket 0711 idd idd
+    mkdir /idd/output 0755 oem_2987 oem_2987
+    mkdir /idd/socket 0711 oem_2987 oem_2987
     mkdir /idd/startup-prober 0700 root root
 
     restorecon_recursive /idd
@@ -122,26 +113,26 @@ service taimport /vendor/bin/taimport
 
 service iddd /vendor/bin/iddd
     class main
-    user idd
-    group idd log inet
+    user oem_2987
+    group oem_2987 log inet
 
 # This script init /cache/CredentialManagerData if /data/credmgr doesn't meet our requirements
 service initcredmgr /system/bin/credmgrfirstboot.sh
     class late_start
     user system
-    group credmgr_client
+    group oem_2996
     oneshot
 
 # When credmgrfirstboot is ready it set sys.credmgrdready=true.
 # Start credmgrd after that
 on property:sys.credmgrdready=true
-start credmgrd
+    start credmgrd
 
 # Start Credential manager daemon
 service credmgrd /vendor/bin/credmgrd
     user system
-    group credmgr_client
-    socket credmgr stream 0660 system credmgr_client
+    group oem_2996
+    socket credmgr stream 0660 system oem_2996
     disabled
 
 # Secure Config Transfer service
@@ -151,8 +142,8 @@ service sct_service /vendor/bin/sct_service
  
 # Trim Area QMI service
 service ta_qmi_service /vendor/bin/ta_qmi_service
-    user ta_qmi
-    group ta_qmi trimarea system root net_raw wakelock
+    user oem_2998
+    group oem_2998 oem_2993 system root net_raw wakelock
     disabled
 #    seclabel u:r:ta_qmi_service:s0
 
@@ -178,19 +169,19 @@ on property:sys.listeners.registered=true
 service qcamerasvr /vendor/bin/mm-qcamera-daemon
     class late_start
     user camera
-    group camera system inet input graphics credmgr_client cameraserver
+    group camera system inet input graphics oem_2996 cameraserver
 
 # SONY: TrimArea Daemon
 service tad_static /sbin/tad_static /dev/block/bootdevice/by-name/TA 0,16
     class trimarea
-    user tad
-    group tad trimarea root
-    socket tad stream 0770 system trimarea
+    user oem_2997
+    group oem_2997 oem_2993 root
+    socket tad stream 0770 system oem_3993
     seclabel u:r:tad:s0
 
 service updatemiscta /vendor/bin/updatemiscta
     class main
-    user updatemiscta
-    group trimarea
+    user oem_2991
+    group oem_2993
     oneshot
 

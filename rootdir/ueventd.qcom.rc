@@ -171,8 +171,8 @@
 /sys/devices/mdp.0/qcom,mdss_fb_primary.169/leds/lcd-backlight  max_brightness      0664 system system
 
 # TA
-/dev/block/bootdevice/by-name/TA 0770  tad      tad
-/dev/block/platform/msm_sdcc.1/by-name/TA 0770 tad tad
+/dev/block/bootdevice/by-name/TA 0770  oem_2997      oem_2997
+/dev/block/platform/msm_sdcc.1/by-name/TA 0770 oem_2997 oem_2997
 
 /dev/cam                  0660   root       camera
 /dev/pmem                 0660   system     graphics
