@@ -1,3 +1,7 @@
+# temp workaround for broken logd and logcat
+PRODUCT_PROPERTY_OVERRIDES += \
+    ro.build.type=eng
+
 # Data modules config
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.data.large_tcp_window_size=true
