@@ -1,0 +1,486 @@
+diff --git a/hal/audio_extn/audio_extn.h b/hal/audio_extn/audio_extn.h
+index 0531b5e..c80fb9a 100644
+--- a/hal/audio_extn/audio_extn.h
++++ b/hal/audio_extn/audio_extn.h
+@@ -148,18 +148,23 @@ void hw_info_append_hw_type(void *hw_info, snd_device_t snd_device,
+ #ifndef AUDIO_LISTEN_ENABLED
+ #define audio_extn_listen_init(adev, snd_card)                  (0)
+ #define audio_extn_listen_deinit(adev)                          (0)
+-#define audio_extn_listen_update_status(uc_info, event)         (0)
++#define audio_extn_listen_update_device_status(snd_dev, event)  (0)
++#define audio_extn_listen_update_stream_status(uc_info, event)  (0)
+ #define audio_extn_listen_set_parameters(adev, parms)           (0)
+ #else
+ enum listen_event_type {
+     LISTEN_EVENT_SND_DEVICE_FREE,
+-    LISTEN_EVENT_SND_DEVICE_BUSY
++    LISTEN_EVENT_SND_DEVICE_BUSY,
++    LISTEN_EVENT_STREAM_FREE,
++    LISTEN_EVENT_STREAM_BUSY
+ };
+ typedef enum listen_event_type listen_event_type_t;
+ 
+ int audio_extn_listen_init(struct audio_device *adev, unsigned int snd_card);
+ void audio_extn_listen_deinit(struct audio_device *adev);
+-void audio_extn_listen_update_status(snd_device_t snd_device,
++void audio_extn_listen_update_device_status(snd_device_t snd_device,
++                                     listen_event_type_t event);
++void audio_extn_listen_update_stream_status(struct audio_usecase *uc_info,
+                                      listen_event_type_t event);
+ void audio_extn_listen_set_parameters(struct audio_device *adev,
+                                       struct str_parms *parms);
+diff --git a/hal/audio_extn/fm.c b/hal/audio_extn/fm.c
+index 3961ba0..f88cec2 100644
+--- a/hal/audio_extn/fm.c
++++ b/hal/audio_extn/fm.c
+@@ -18,8 +18,7 @@
+  */
+ 
+ #define LOG_TAG "audio_hw_fm"
+-/*#define LOG_NDEBUG 0*/
+-#define LOG_NDDEBUG 0
++#define LOG_NDEBUG 0
+ 
+ #include <errno.h>
+ #include <math.h>
+@@ -34,6 +33,8 @@
+ #ifdef FM_POWER_OPT
+ #define AUDIO_PARAMETER_KEY_HANDLE_FM "handle_fm"
+ #define AUDIO_PARAMETER_KEY_FM_VOLUME "fm_volume"
++#define AUDIO_PARAMETER_KEY_FM_MUTE "fm_mute"
++#define FM_LOOPBACK_DRAIN_TIME_MS 2
+ 
+ static struct pcm_config pcm_config_fm = {
+     .channels = 2,
+@@ -50,6 +51,7 @@ struct fm_module {
+     struct pcm *fm_pcm_rx;
+     struct pcm *fm_pcm_tx;
+     bool is_fm_running;
++    bool is_fm_muted;
+     float fm_volume;
+     bool restart_fm;
+     int scard_state;
+@@ -60,15 +62,16 @@ static struct fm_module fmmod = {
+   .fm_pcm_tx = NULL,
+   .fm_volume = 0,
+   .is_fm_running = 0,
++  .is_fm_muted = 0,
+   .restart_fm = 0,
+   .scard_state = SND_CARD_STATE_ONLINE,
+ };
+ 
+-static int32_t fm_set_volume(struct audio_device *adev, float value)
++static int32_t fm_set_volume(struct audio_device *adev, float value, bool persist)
+ {
+     int32_t vol, ret = 0;
+     struct mixer_ctl *ctl;
+-    const char *mixer_ctl_name = "Internal FM RX Volume";
++    const char *mixer_ctl_name = FM_RX_VOLUME;
+ 
+     ALOGV("%s: entry", __func__);
+     ALOGD("%s: (%f)\n", __func__, value);
+@@ -81,7 +84,14 @@ static int32_t fm_set_volume(struct audio_device *adev, float value)
+         value = 1.0;
+     }
+     vol  = lrint((value * 0x2000) + 0.5);
+-    fmmod.fm_volume = value;
++    if (persist)
++        fmmod.fm_volume = value;
++
++    if (fmmod.is_fm_muted == true && vol > 0) {
++        ALOGD("%s: fm is muted, applying '0' volume instead of '%d'.",
++                                                        __func__, vol);
++        vol = 0;
++    }
+ 
+     if (!fmmod.is_fm_running) {
+         ALOGV("%s: FM not active, ignoring set_fm_volume call", __func__);
+@@ -96,14 +106,13 @@ static int32_t fm_set_volume(struct audio_device *adev, float value)
+         return -EINVAL;
+     }
+     mixer_ctl_set_value(ctl, 0, vol);
+-
+     ALOGV("%s: exit", __func__);
+     return ret;
+ }
+ 
+ static int32_t fm_stop(struct audio_device *adev)
+ {
+-    int32_t i, ret = 0;
++    int32_t ret = 0;
+     struct audio_usecase *uc_info;
+ 
+     ALOGD("%s: enter", __func__);
+@@ -142,7 +151,7 @@ static int32_t fm_stop(struct audio_device *adev)
+ 
+ static int32_t fm_start(struct audio_device *adev)
+ {
+-    int32_t i, ret = 0;
++    int32_t ret = 0;
+     struct audio_usecase *uc_info;
+     int32_t pcm_dev_rx_id, pcm_dev_tx_id;
+ 
+@@ -150,8 +159,10 @@ static int32_t fm_start(struct audio_device *adev)
+ 
+     uc_info = (struct audio_usecase *)calloc(1, sizeof(struct audio_usecase));
+ 
+-    if (!uc_info)
++    if (!uc_info) {
++        ALOGE("%s: uc_info!!!", __func__);
+         return -ENOMEM;
++    }
+ 
+     uc_info->id = USECASE_AUDIO_PLAYBACK_FM;
+     uc_info->type = PCM_PLAYBACK;
+@@ -202,7 +213,7 @@ static int32_t fm_start(struct audio_device *adev)
+     pcm_start(fmmod.fm_pcm_tx);
+ 
+     fmmod.is_fm_running = true;
+-    fm_set_volume(adev, fmmod.fm_volume);
++    fm_set_volume(adev, fmmod.fm_volume, false);
+ 
+     ALOGD("%s: exit: status(%d)", __func__, ret);
+     return 0;
+@@ -231,7 +242,7 @@ void audio_extn_fm_set_parameters(struct audio_device *adev,
+             fmmod.scard_state = SND_CARD_STATE_ONLINE;
+         }
+     }
+-    if(fmmod.is_fm_running) {
++    if (fmmod.is_fm_running) {
+         if (fmmod.scard_state == SND_CARD_STATE_OFFLINE) {
+             ALOGD("sound card is OFFLINE, stop FM");
+             fm_stop(adev);
+@@ -242,8 +253,10 @@ void audio_extn_fm_set_parameters(struct audio_device *adev,
+                                 value, sizeof(value));
+         if (ret >= 0) {
+             val = atoi(value);
+-            if(val > 0)
++            if (val > 0) {
++                ALOGD("%s: selecting USECASE_AUDIO_PLAYBACK_FM", __func__);
+                 select_devices(adev, USECASE_AUDIO_PLAYBACK_FM);
++            }
+         }
+     }
+     if (fmmod.restart_fm && (fmmod.scard_state == SND_CARD_STATE_ONLINE)) {
+@@ -256,15 +269,19 @@ void audio_extn_fm_set_parameters(struct audio_device *adev,
+                             value, sizeof(value));
+     if (ret >= 0) {
+         val = atoi(value);
+-        ALOGD("%s: FM usecase", __func__);
++        ALOGD("%s: FM usecase, val=%d valcase=%d fmisruning=%s", __func__, val, val & AUDIO_DEVICE_OUT_FM,
++                    (fmmod.is_fm_running == true) ? "true" : "false");
+         if (val != 0) {
+-            if(val & AUDIO_DEVICE_OUT_FM
++            if (val & AUDIO_DEVICE_OUT_FM
+                && fmmod.is_fm_running == false) {
+                 adev->primary_output->devices = val & ~AUDIO_DEVICE_OUT_FM;
+                 fm_start(adev);
+             } else if (!(val & AUDIO_DEVICE_OUT_FM)
+-                     && fmmod.is_fm_running == true)
++                     && fmmod.is_fm_running == true) {
++                fm_set_volume(adev, 0, false);
++                usleep(FM_LOOPBACK_DRAIN_TIME_MS*1000);
+                 fm_stop(adev);
++            }
+        }
+     }
+ 
+@@ -278,7 +295,18 @@ void audio_extn_fm_set_parameters(struct audio_device *adev,
+             goto exit;
+         }
+         ALOGD("%s: set_fm_volume usecase", __func__);
+-        fm_set_volume(adev, vol);
++        fm_set_volume(adev, vol, true);
++    }
++
++    ret = str_parms_get_str(parms, AUDIO_PARAMETER_KEY_FM_MUTE,
++                            value, sizeof(value));
++    if (ret >= 0) {
++        if (value[0] == '1')
++            fmmod.is_fm_muted = true;
++        else
++            fmmod.is_fm_muted = false;
++        ALOGV("%s: set_fm_volume from param mute", __func__);
++        fm_set_volume(adev, fmmod.fm_volume, false);
+     }
+ 
+ exit:
+diff --git a/hal/audio_extn/listen.c b/hal/audio_extn/listen.c
+index 91bb04f..b1ed105 100644
+--- a/hal/audio_extn/listen.c
++++ b/hal/audio_extn/listen.c
+@@ -95,25 +95,75 @@ struct listen_audio_device {
+ 
+ static struct listen_audio_device *listen_dev;
+ 
+-void audio_extn_listen_update_status(snd_device_t snd_device,
+-                                    listen_event_type_t event)
++void audio_extn_listen_update_device_status(snd_device_t snd_device,
++                                     listen_event_type_t event)
+ {
+-    if (!platform_listen_update_status(snd_device)) {
+-        ALOGV("%s(): no need to notify listen. device = %s. Event = %u",
+-                __func__, platform_get_snd_device_name(snd_device), event);
++    bool raise_event = false;
++    int device_type = -1;
++
++    if (snd_device >= SND_DEVICE_OUT_BEGIN &&
++        snd_device < SND_DEVICE_OUT_END)
++        device_type = PCM_PLAYBACK;
++    else if (snd_device >= SND_DEVICE_IN_BEGIN &&
++        snd_device < SND_DEVICE_IN_END)
++        device_type = PCM_CAPTURE;
++    else {
++        ALOGE("%s: invalid device 0x%x, for event %d",
++                           __func__, snd_device, event);
+         return;
+     }
+ 
+     if (listen_dev) {
+-        ALOGI("%s(): %s listen. current active device = %s. Event = %u",
+-                __func__,
+-                (event == LISTEN_EVENT_SND_DEVICE_BUSY) ? "stop" : "start",
+-                platform_get_snd_device_name(snd_device), event);
+-
+-            if (event == LISTEN_EVENT_SND_DEVICE_FREE)
+-                   listen_dev->notify_event(AUDIO_CAPTURE_INACTIVE);
+-            else if (event == LISTEN_EVENT_SND_DEVICE_BUSY)
+-                   listen_dev->notify_event(AUDIO_CAPTURE_ACTIVE);
++        raise_event = platform_listen_device_needs_event(snd_device);
++        ALOGI("%s(): device 0x%x of type %d for Event %d, with Raise=%d",
++            __func__, snd_device, device_type, event, raise_event);
++        if (raise_event && (device_type == PCM_CAPTURE)) {
++            switch(event) {
++            case LISTEN_EVENT_SND_DEVICE_FREE:
++                listen_dev->notify_event(AUDIO_DEVICE_IN_INACTIVE);
++                break;
++            case LISTEN_EVENT_SND_DEVICE_BUSY:
++                listen_dev->notify_event(AUDIO_DEVICE_IN_ACTIVE);
++                break;
++            default:
++                ALOGW("%s:invalid event %d for device 0x%x",
++                                      __func__, event, snd_device);
++            }
++        }/*Events for output device, if required can be placed here in else*/
++    }
++}
++
++void audio_extn_listen_update_stream_status(struct audio_usecase *uc_info,
++                                     listen_event_type_t event)
++{
++    bool raise_event = false;
++    audio_usecase_t uc_id;
++    int usecase_type = -1;
++
++    if (uc_info == NULL) {
++        ALOGE("%s: usecase is NULL!!!", __func__);
++        return;
++    }
++    uc_id = uc_info->id;
++    usecase_type = uc_info->type;
++
++    if (listen_dev) {
++        raise_event = platform_listen_usecase_needs_event(uc_id);
++        ALOGI("%s(): uc_id %d of type %d for Event %d, with Raise=%d",
++            __func__, uc_id, usecase_type, event, raise_event);
++        if (raise_event && (usecase_type == PCM_PLAYBACK)) {
++            switch(event) {
++            case LISTEN_EVENT_STREAM_FREE:
++                listen_dev->notify_event(AUDIO_STREAM_OUT_INACTIVE);
++                break;
++            case LISTEN_EVENT_STREAM_BUSY:
++                listen_dev->notify_event(AUDIO_STREAM_OUT_ACTIVE);
++                break;
++            default:
++                ALOGW("%s:invalid event %d, for usecase %d",
++                                      __func__, event, uc_id);
++            }
++        }/*Events for capture usecase, if required can be placed here in else*/
+     }
+ }
+ 
+diff --git a/hal/audio_hw.c b/hal/audio_hw.c
+index a74af98..4ff89b1 100644
+--- a/hal/audio_hw.c
++++ b/hal/audio_hw.c
+@@ -528,6 +528,7 @@ int enable_audio_route(struct audio_device *adev,
+     audio_extn_dolby_set_dmid(adev);
+     audio_extn_dolby_set_endpoint(adev);
+ #endif
++    audio_extn_listen_update_stream_status(usecase, LISTEN_EVENT_STREAM_BUSY);
+     strcpy(mixer_path, use_case_table[usecase->id]);
+     platform_add_backend_name(mixer_path, snd_device);
+     ALOGV("%s: apply mixer and update path: %s", __func__, mixer_path);
+@@ -554,6 +555,7 @@ int disable_audio_route(struct audio_device *adev,
+     platform_add_backend_name(mixer_path, snd_device);
+     ALOGV("%s: reset and update mixer path: %s", __func__, mixer_path);
+     audio_route_reset_and_update_path(adev->audio_route, mixer_path);
++    audio_extn_listen_update_stream_status(usecase, LISTEN_EVENT_STREAM_FREE);
+     ALOGV("%s: exit", __func__);
+     return 0;
+ }
+@@ -604,7 +606,7 @@ int enable_snd_device(struct audio_device *adev,
+             adev->snd_dev_ref_cnt[snd_device]--;
+             return -EINVAL;
+         }
+-        audio_extn_listen_update_status(snd_device,
++        audio_extn_listen_update_device_status(snd_device,
+                 LISTEN_EVENT_SND_DEVICE_BUSY);
+         amplifier_enable_devices(snd_device, true);
+         audio_route_apply_and_update_path(adev->audio_route, device_name);
+@@ -655,7 +657,7 @@ int disable_snd_device(struct audio_device *adev,
+             amplifier_enable_devices(snd_device, false);
+         }
+ 
+-        audio_extn_listen_update_status(snd_device,
++        audio_extn_listen_update_device_status(snd_device,
+                                         LISTEN_EVENT_SND_DEVICE_FREE);
+     }
+ 
+diff --git a/hal/msm8974/platform.c b/hal/msm8974/platform.c
+index ac55b68..0c08958 100644
+--- a/hal/msm8974/platform.c
++++ b/hal/msm8974/platform.c
+@@ -2281,14 +2281,21 @@ int platform_update_usecase_from_source(int source, int usecase)
+     }
+ }
+ 
+-bool platform_listen_update_status(snd_device_t snd_device)
++bool platform_listen_device_needs_event(snd_device_t snd_device)
+ {
++    bool needs_event = false;
++
+     if ((snd_device >= SND_DEVICE_IN_BEGIN) &&
+         (snd_device < SND_DEVICE_IN_END) &&
+         (snd_device != SND_DEVICE_IN_CAPTURE_VI_FEEDBACK))
+-        return true;
+-    else
+-        return false;
++        needs_event = true;
++
++    return needs_event;
++}
++
++bool platform_listen_usecase_needs_event(audio_usecase_t uc_id)
++{
++    return false;
+ }
+ 
+ /* Read  offload buffer size from a property.
+diff --git a/hal/msm8974/platform.h b/hal/msm8974/platform.h
+index 472d8d4..15529c7 100644
+--- a/hal/msm8974/platform.h
++++ b/hal/msm8974/platform.h
+@@ -151,6 +151,7 @@ enum {
+ };
+ 
+ #define DEFAULT_OUTPUT_SAMPLING_RATE 48000
++#define OUTPUT_SAMPLING_RATE_44100 44100
+ 
+ #define ALL_SESSION_VSID                0xFFFFFFFF
+ #define DEFAULT_MUTE_RAMP_DURATION      500
+@@ -295,6 +296,7 @@ typedef int (*init_t)(bool);
+ #else
+ typedef int (*init_t)();
+ #endif
++#define FM_RX_VOLUME "Internal FM RX Volume"
+ typedef int (*deinit_t)();
+ typedef int (*disable_device_t)();
+ typedef int (*enable_device_config_t)(int, int);
+diff --git a/hal/platform_api.h b/hal/platform_api.h
+index b5042cd..d4dc78c 100644
+--- a/hal/platform_api.h
++++ b/hal/platform_api.h
+@@ -67,7 +67,8 @@ int platform_update_lch(void *platform, struct voice_session *session,
+ int64_t platform_render_latency(audio_usecase_t usecase);
+ int platform_update_usecase_from_source(int source, audio_usecase_t usecase);
+ 
+-bool platform_listen_update_status(audio_usecase_t uc_id);
++bool platform_listen_device_needs_event(snd_device_t snd_device);
++bool platform_listen_usecase_needs_event(audio_usecase_t uc_id);
+ 
+ int platform_set_snd_device_backend(snd_device_t snd_device, const char * backend);
+ int platform_set_snd_device_name(snd_device_t snd_device, const char * name);
+diff --git a/policy_hal/AudioPolicyManager.cpp b/policy_hal/AudioPolicyManager.cpp
+index de4e868..5b5abd8 100755
+--- a/policy_hal/AudioPolicyManager.cpp
++++ b/policy_hal/AudioPolicyManager.cpp
+@@ -257,12 +257,15 @@ status_t AudioPolicyManagerCustom::setDeviceConnectionStateInt(audio_devices_t d
+ 
+ #ifdef FM_POWER_OPT
+         // handle FM device connection state to trigger FM AFE loopback
+-        if(device == AUDIO_DEVICE_OUT_FM && hasPrimaryOutput()) {
+-           audio_devices_t newDevice = getNewOutputDevice(mPrimaryOutput, false /*fromCache*/);
++        if (device == AUDIO_DEVICE_OUT_FM && hasPrimaryOutput()) {
++           audio_devices_t newDevice = AUDIO_DEVICE_NONE;
+            if (state == AUDIO_POLICY_DEVICE_STATE_AVAILABLE) {
+                mPrimaryOutput->changeRefCount(AUDIO_STREAM_MUSIC, 1);
+-               newDevice = (audio_devices_t)getNewOutputDevice(mPrimaryOutput, false /*fromCache*/) | AUDIO_DEVICE_OUT_FM;
++               newDevice = (audio_devices_t)(getNewOutputDevice(mPrimaryOutput, false)|AUDIO_DEVICE_OUT_FM);
++               mFMIsActive = true;
+            } else {
++               newDevice = (audio_devices_t)(getNewOutputDevice(mPrimaryOutput, false));
++               mFMIsActive = false;
+                mPrimaryOutput->changeRefCount(AUDIO_STREAM_MUSIC, -1);
+            }
+            AudioParameter param = AudioParameter();
+@@ -643,7 +646,7 @@ void AudioPolicyManagerCustom::setPhoneState(audio_mode_t state)
+     updateDevicesAndOutputs();
+ 
+     sp<SwAudioOutputDescriptor> hwOutputDesc = mPrimaryOutput;
+-
++    mPrevPhoneState = oldState;
+     int delayMs = 0;
+     if (isStateInCall(state)) {
+         nsecs_t sysTime = systemTime();
+@@ -1071,15 +1074,22 @@ status_t AudioPolicyManagerCustom::checkAndSetVolume(audio_stream_type_t stream,
+         }
+ #ifdef FM_POWER_OPT
+     } else if (stream == AUDIO_STREAM_MUSIC && hasPrimaryOutput() &&
+-               outputDesc == mPrimaryOutput) {
+-        AudioParameter param = AudioParameter();
+-        param.addFloat(String8("fm_volume"), Volume::DbToAmpl(volumeDb));
+-        mpClientInterface->setParameters(mPrimaryOutput->mIoHandle, param.toString(), delayMs);
++               outputDesc == mPrimaryOutput && mFMIsActive) {
++        /* Avoid unnecessary set_parameter calls as it puts the primary
++           outputs FastMixer in HOT_IDLE leading to breaks in audio */
++        if (volumeDb != mPrevFMVolumeDb) {
++            mPrevFMVolumeDb = volumeDb;
++            AudioParameter param = AudioParameter();
++            param.addFloat(String8("fm_volume"), Volume::DbToAmpl(volumeDb));
++            //Double delayMs to avoid sound burst while device switch.
++            mpClientInterface->setParameters(mPrimaryOutput->mIoHandle, param.toString(), delayMs*2);
++        }
+ #endif /* FM_POWER_OPT end */
+     }
+ 
+     return NO_ERROR;
+ }
++
+ bool AudioPolicyManagerCustom::isDirectOutput(audio_io_handle_t output) {
+     for (size_t i = 0; i < mOutputs.size(); i++) {
+         audio_io_handle_t curOutput = mOutputs.keyAt(i);
+@@ -1477,7 +1487,9 @@ AudioPolicyManagerCustom::AudioPolicyManagerCustom(AudioPolicyClientInterface *c
+     : AudioPolicyManager(clientInterface),
+       mHdmiAudioDisabled(false),
+       mHdmiAudioEvent(false),
+-      mPrevPhoneState(0)
++      mPrevPhoneState(0),
++      mPrevFMVolumeDb(0.0f),
++      mFMIsActive(false)
+ {
+ 
+     //TODO: Check the new logic to parse policy conf and update the below code
+diff --git a/policy_hal/AudioPolicyManager.h b/policy_hal/AudioPolicyManager.h
+index 2bcaa1b..6575bd6 100644
+--- a/policy_hal/AudioPolicyManager.h
++++ b/policy_hal/AudioPolicyManager.h
+@@ -137,6 +137,8 @@ private:
+ #ifdef VOICE_CONCURRENCY
+         int mvoice_call_state;
+ #endif
++        float mPrevFMVolumeDb;
++        bool mFMIsActive;
+ };
+ 
+ };

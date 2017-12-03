@@ -1,0 +1,114 @@
+diff --git a/src/com/android/nfc/cardemulation/AidRoutingManager.java b/src/com/android/nfc/cardemulation/AidRoutingManager.java
+index 96225b7..19c6cdd 100644
+--- a/src/com/android/nfc/cardemulation/AidRoutingManager.java
++++ b/src/com/android/nfc/cardemulation/AidRoutingManager.java
+@@ -30,7 +30,7 @@ import java.util.Set;
+ public class AidRoutingManager {
+     static final String TAG = "AidRoutingManager";
+ 
+-    static final boolean DBG = false;
++    static final boolean DBG = true;
+ 
+     static final int ROUTE_HOST = 0x00;
+ 
+@@ -68,16 +68,16 @@ public class AidRoutingManager {
+     // Easy look-up what the route is for a certain AID
+     HashMap<String, Integer> mRouteForAid = new HashMap<String, Integer>();
+ 
+-    private native int doGetDefaultRouteDestination();
+-    private native int doGetDefaultOffHostRouteDestination();
+-    private native int doGetAidMatchingMode();
++    //private native int doGetDefaultRouteDestination();
++    //private native int doGetDefaultOffHostRouteDestination();
++    //private native int doGetAidMatchingMode();
+ 
+     public AidRoutingManager() {
+-        mDefaultRoute = doGetDefaultRouteDestination();
++        mDefaultRoute = 2;
+         if (DBG) Log.d(TAG, "mDefaultRoute=0x" + Integer.toHexString(mDefaultRoute));
+-        mDefaultOffHostRoute = doGetDefaultOffHostRouteDestination();
++        mDefaultOffHostRoute = 2;
+         if (DBG) Log.d(TAG, "mDefaultOffHostRoute=0x" + Integer.toHexString(mDefaultOffHostRoute));
+-        mAidMatchingSupport = doGetAidMatchingMode();
++        mAidMatchingSupport = 0;
+         if (DBG) Log.d(TAG, "mAidMatchingSupport=0x" + Integer.toHexString(mAidMatchingSupport));
+     }
+ 
+diff --git a/src/com/android/nfc/cardemulation/CardEmulationManager.java b/src/com/android/nfc/cardemulation/CardEmulationManager.java
+index 3fc58fd..9692acc 100644
+--- a/src/com/android/nfc/cardemulation/CardEmulationManager.java
++++ b/src/com/android/nfc/cardemulation/CardEmulationManager.java
+@@ -61,7 +61,7 @@ public class CardEmulationManager implements RegisteredServicesCache.Callback,
+         RegisteredNfcFServicesCache.Callback, PreferredServices.Callback,
+         EnabledNfcFServices.Callback {
+     static final String TAG = "CardEmulationManager";
+-    static final boolean DBG = false;
++    static final boolean DBG = true;
+ 
+     static final int NFC_HCE_APDU = 0x01;
+     static final int NFC_HCE_NFCF = 0x04;
+diff --git a/src/com/android/nfc/cardemulation/HostEmulationManager.java b/src/com/android/nfc/cardemulation/HostEmulationManager.java
+index d5a00ee..0022480 100644
+--- a/src/com/android/nfc/cardemulation/HostEmulationManager.java
++++ b/src/com/android/nfc/cardemulation/HostEmulationManager.java
+@@ -43,7 +43,7 @@ import java.util.ArrayList;
+ 
+ public class HostEmulationManager {
+     static final String TAG = "HostEmulationManager";
+-    static final boolean DBG = false;
++    static final boolean DBG = true;
+ 
+     static final int STATE_IDLE = 0;
+     static final int STATE_W4_SELECT = 1;
+diff --git a/src/com/android/nfc/cardemulation/RegisteredAidCache.java b/src/com/android/nfc/cardemulation/RegisteredAidCache.java
+index 0ac04b7..0dba5b8 100644
+--- a/src/com/android/nfc/cardemulation/RegisteredAidCache.java
++++ b/src/com/android/nfc/cardemulation/RegisteredAidCache.java
+@@ -40,7 +40,7 @@ import java.util.TreeMap;
+ public class RegisteredAidCache {
+     static final String TAG = "RegisteredAidCache";
+ 
+-    static final boolean DBG = false;
++    static final boolean DBG = true;
+ 
+     // mAidServices maps AIDs to services that have registered them.
+     // It's a TreeMap in order to be able to quickly select subsets
+diff --git a/src/com/android/nfc/cardemulation/RegisteredServicesCache.java b/src/com/android/nfc/cardemulation/RegisteredServicesCache.java
+index b454073..2ebdfb2 100644
+--- a/src/com/android/nfc/cardemulation/RegisteredServicesCache.java
++++ b/src/com/android/nfc/cardemulation/RegisteredServicesCache.java
+@@ -68,7 +68,7 @@ import java.util.concurrent.atomic.AtomicReference;
+ public class RegisteredServicesCache {
+     static final String XML_INDENT_OUTPUT_FEATURE = "http://xmlpull.org/v1/doc/features.html#indent-output";
+     static final String TAG = "RegisteredServicesCache";
+-    static final boolean DEBUG = false;
++    static final boolean DEBUG = true;
+ 
+     final Context mContext;
+     final AtomicReference<BroadcastReceiver> mReceiver;
+diff --git a/src/com/android/nfc/cardemulation/RegisteredT3tIdentifiersCache.java b/src/com/android/nfc/cardemulation/RegisteredT3tIdentifiersCache.java
+index de7ef8f..096fee7 100644
+--- a/src/com/android/nfc/cardemulation/RegisteredT3tIdentifiersCache.java
++++ b/src/com/android/nfc/cardemulation/RegisteredT3tIdentifiersCache.java
+@@ -33,7 +33,7 @@ import java.util.HashMap;
+ public class RegisteredT3tIdentifiersCache {
+     static final String TAG = "RegisteredT3tIdentifiersCache";
+ 
+-    static final boolean DBG = false;
++    static final boolean DBG = true;
+ 
+     // All NFC-F services that have registered
+     List<NfcFServiceInfo> mServices = new ArrayList<NfcFServiceInfo>();
+diff --git a/src/com/android/nfc/cardemulation/SystemCodeRoutingManager.java b/src/com/android/nfc/cardemulation/SystemCodeRoutingManager.java
+index 7019525..ef784ef 100644
+--- a/src/com/android/nfc/cardemulation/SystemCodeRoutingManager.java
++++ b/src/com/android/nfc/cardemulation/SystemCodeRoutingManager.java
+@@ -29,7 +29,7 @@ import java.util.List;
+ public class SystemCodeRoutingManager {
+     static final String TAG = "SystemCodeRoutingManager";
+ 
+-    static final boolean DBG = false;
++    static final boolean DBG = true;
+ 
+     final Object mLock = new Object();
+ 

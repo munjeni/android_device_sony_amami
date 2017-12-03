@@ -1,0 +1,29 @@
+diff --git a/Android.mk b/Android.mk
+index e8676a7..b4aebd6 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -113,19 +113,19 @@ endif
+ 
+ # Uncomment for Chipset command/responses
+ # Or use "setprop debug.nfc.LOW_LEVEL_TRACES" at run-time
+-# LOCAL_CFLAGS += -DLOW_LEVEL_TRACES
++LOCAL_CFLAGS += -DLOW_LEVEL_TRACES
+ 
+ # Uncomment for DAL traces
+-# LOCAL_CFLAGS += -DDEBUG -DDAL_TRACE
++LOCAL_CFLAGS += -DDEBUG -DDAL_TRACE
+ 
+ # Uncomment for LLC traces
+-# LOCAL_CFLAGS += -DDEBUG -DLLC_TRACE
++LOCAL_CFLAGS += -DDEBUG -DLLC_TRACE
+ 
+ # Uncomment for LLCP traces
+-# LOCAL_CFLAGS += -DDEBUG -DLLCP_TRACE
++LOCAL_CFLAGS += -DDEBUG -DLLCP_TRACE
+ 
+ # Uncomment for HCI traces
+-# LOCAL_CFLAGS += -DDEBUG -DHCI_TRACE
++LOCAL_CFLAGS += -DDEBUG -DHCI_TRACE
+ 
+ #includes
+ LOCAL_CFLAGS += -I$(LOCAL_PATH)/inc

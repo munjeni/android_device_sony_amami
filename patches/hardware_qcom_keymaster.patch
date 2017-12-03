@@ -1,0 +1,15 @@
+diff --git a/Android.mk b/Android.mk
+index 1dd476e..3a3b3af 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -9,6 +9,10 @@ ifeq ($(TARGET_BOARD_PLATFORM),msm8084)
+ keymaster-def += -D_ION_HEAP_MASK_COMPATIBILITY_WA
+ endif
+ 
++ifeq ($(TARGET_BOARD_PLATFORM),msm8974)
++keymaster-def += -D_ION_HEAP_MASK_COMPATIBILITY_WA
++endif
++
+ include $(CLEAR_VARS)
+ 
+ LOCAL_MODULE := keystore.$(TARGET_BOARD_PLATFORM)
