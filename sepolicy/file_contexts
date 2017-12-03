@@ -72,7 +72,7 @@
 
 ###################################
 # adb
-/dev/android_adb.*             u:object_r:adb_device:s0
+#/dev/android_adb.*             u:object_r:adb_device:s0
 
 ####################################
 # NOT READY STUFF
