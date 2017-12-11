@@ -14,11 +14,14 @@
 # limitations under the License.
 #
 
+on early-init
+    symlink /data/tombstones /tombstones
+
 on init
     # BoringSSL hacks
     export LD_PRELOAD "libboringssl-compat.so"
 
-    export LD_SHIM_LIBS "/system/vendor/bin/credmgrd|libsony_signal.so:/system/vendor/bin/suntrold|libsony_signal.so:/system/vendor/bin/iddd|libshims_idd.so:/system/vendor/bin/mm-qcamera-daemon|libshim_atomic.so:/system/lib/hw/camera.qcom.so|libsony_camera.so:/system/lib/libcammw.so|libshim_cald.so:/system/lib/hw/camera.qcom.so|libsony_graphicbuffer.so"
+    export LD_SHIM_LIBS "/system/vendor/bin/credmgrd|libsony_signal.so:/system/vendor/bin/suntrold|libsony_signal.so:/system/vendor/bin/iddd|libshims_idd.so:/system/vendor/lib/liboemcamera.so|libshim_atomic.so:/system/lib/hw/camera.qcom.so|libsony_camera.so:/system/lib/libcammw.so|libshim_cald.so:/system/lib/hw/camera.qcom.so|libsony_graphicbuffer.so"
 
     mkdir /idd 0751 oem_2987 oem_2987
     mkdir /rca 0750 oem_2987 oem_2987
@@ -59,14 +62,28 @@ on boot
     chown media system /sys/class/misc/pm8941-flash/device/strobe
     chown media system /sys/class/misc/pm8941-flash/device/vph_pwr_droop
 
-on post-fs-data
-     # we will remap this as /mnt/sdcard with the sdcard fuse tool
-     mkdir /data/misc/camera 0770 camera camera
-     mkdir /data/misc/cameraserver 0700 cameraserver cameraserver
+    # add a cpuset for the camera daemon
+    # we want all the little cores for camera
+    mkdir /dev/cpuset/camera-daemon
+    write /dev/cpuset/camera-daemon/cpus 0
+    write /dev/cpuset/camera-daemon/mems 0
+    chown system system /dev/cpuset/camera-daemon
+    chown system system /dev/cpuset/camera-daemon/tasks
+    chmod 0664 /dev/cpuset/camera-daemon/tasks
 
-     # create directory for scd
-     mkdir /dev/socket/scd 0755 system system
-     mkdir /data/scd 0755 system system
+on post-fs-data
+    mkdir /data/credmgr 0770 system oem_2996
+    mkdir /data/tombstones 0755 system system
+    mkdir /data/tombstones/vendor 0775 system system
+    mkdir /data/mediaserver 0740 media media
+
+    # we will remap this as /mnt/sdcard with the sdcard fuse tool
+    mkdir /data/misc/camera 0770 camera camera
+    mkdir /data/misc/cameraserver 0700 cameraserver cameraserver
+
+    # create directory for scd
+    mkdir /dev/socket/scd 0755 system system
+    mkdir /data/scd 0755 system system
 
     # SONY: Start early TA-users
     mkdir /data/etc 0755 system system
@@ -119,7 +136,7 @@ service iddd /vendor/bin/iddd
 # This script init /cache/CredentialManagerData if /data/credmgr doesn't meet our requirements
 service initcredmgr /system/bin/credmgrfirstboot.sh
     class late_start
-    user system
+    user root
     group oem_2996
     oneshot
 
