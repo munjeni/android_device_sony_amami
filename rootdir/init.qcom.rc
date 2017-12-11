@@ -16,7 +16,7 @@
 #
 
 import /init.device.rc
-import /init.camera.rc
+import /init.sony.rc
 import /init.qcom.power.rc
 import /init.msm8974-common.rc
 
