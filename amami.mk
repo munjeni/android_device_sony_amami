@@ -55,10 +55,6 @@ PRODUCT_COPY_FILES += \
     device/sony/amami/rootdir/ueventd.qcom.rc:root/ueventd.qcom.rc \
     device/sony/amami/rootdir/init.qcom.power.rc:root/init.qcom.power.rc
 
-# temp workaround for broken adb daemon
-PRODUCT_COPY_FILES += \
-    device/sony/amami/rootdir/sbin/adbd:root/sbin/adbd \
-
 # ANT+
 PRODUCT_PACKAGES += \
     AntHalService \
