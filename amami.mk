@@ -51,7 +51,7 @@ PRODUCT_PACKAGES += \
 PRODUCT_COPY_FILES += \
     device/sony/amami/rootdir/fstab.qcom:root/fstab.qcom \
     device/sony/amami/rootdir/init.qcom.rc:root/init.qcom.rc \
-    device/sony/amami/rootdir/init.camera.rc:root/init.camera.rc \
+    device/sony/amami/rootdir/init.sony.rc:root/init.sony.rc \
     device/sony/amami/rootdir/ueventd.qcom.rc:root/ueventd.qcom.rc \
     device/sony/amami/rootdir/init.qcom.power.rc:root/init.qcom.power.rc
 
