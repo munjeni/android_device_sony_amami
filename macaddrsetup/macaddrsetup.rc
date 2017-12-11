@@ -3,5 +3,5 @@ service macaddrsetup /vendor/bin/macaddrsetup /sys/devices/fb000000.qcom,wcnss-w
     user root
     group root bluetooth system
     oneshot
-    seclabel u:r:macaddrsetup:s0
+    #seclabel u:r:macaddrsetup:s0
 
