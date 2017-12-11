@@ -273,8 +273,8 @@ PRODUCT_PROPERTY_OVERRIDES += \
     drm.service.enabled=true
 
 # Seccomp policy
-PRODUCT_COPY_FILES += \
-    device/sony/amami/seccomp_policy/mediacodec.policy:system/etc/seccomp_policy/mediacodec.policy
+#PRODUCT_COPY_FILES += \
+#    device/sony/amami/seccomp_policy/mediacodec.policy:system/etc/seccomp_policy/mediacodec.policy
 
 # Music packages
 PRODUCT_PACKAGES += \
