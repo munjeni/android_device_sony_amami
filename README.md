@@ -25,5 +25,5 @@ depending on (Sony specific):
 
 ## Device Picture
 
-![Sony Xperia Z1 Compact](http://www.technologytell.com/gadgets/files/2013/09/sony-xperia-z1.jpg "Sony Xperia Z1 Compact")
+![Sony Xperia Z1 Compact](https://api.sonymobile.com/files/xperia-z1-compact-hero-black-1240x840-0da4cf75109b8803ab8362c6b82bafdc.jpg "Sony Xperia Z1 Compact")
 
